@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@actioncodes/sdk':
+        specifier: ^1.0.4
+        version: 1.0.4
       '@solana/wallet-adapter-base':
         specifier: ^0.9.27
         version: 0.9.27(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
@@ -26,6 +29,9 @@ importers:
         version: 7.0.0(@types/node@24.0.6)
 
 packages:
+
+  '@actioncodes/sdk@1.0.4':
+    resolution: {integrity: sha512-uXgyzWAsTAoqes9porZp58HamIem3dEbpxMsquOoAms6SIHc32Ii3lusR2fcYb8+3LsD2IZs92MXVNWsuI59EQ==}
 
   '@babel/runtime@7.27.6':
     resolution: {integrity: sha512-vbavdySgbTTrmFE+EsiqUTzlOr5bzlnJtUv9PynGCAKvfQqjIXbvFdumPM/GxMDfyuGMJaJAU6TO4zc1Jf1i8Q==}
@@ -457,6 +463,9 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  js-sha256@0.11.1:
+    resolution: {integrity: sha512-o6WSo/LUvY2uC4j7mO50a2ms7E/EAdbP0swigLV+nzHKTTaYnaLIWJ02VdXrsJX0vGedDESQnLsOekr94ryfjg==}
+
   json-stringify-safe@5.0.1:
     resolution: {integrity: sha512-ZClg6AaYvamvYEE82d3Iyd3vSSIjQ+odgjaTzRuO3s7toCdFKczob2i0zCh7JE8kWn17yvAWhUVxvqGwUalsRA==}
 
@@ -538,6 +547,9 @@ packages:
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
+  tweetnacl@1.0.3:
+    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
 
   typescript@5.8.3:
     resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
@@ -626,6 +638,11 @@ packages:
         optional: true
 
 snapshots:
+
+  '@actioncodes/sdk@1.0.4':
+    dependencies:
+      js-sha256: 0.11.1
+      tweetnacl: 1.0.3
 
   '@babel/runtime@7.27.6': {}
 
@@ -982,6 +999,8 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  js-sha256@0.11.1: {}
+
   json-stringify-safe@5.0.1: {}
 
   lit-element@4.2.0:
@@ -1082,6 +1101,8 @@ snapshots:
   tr46@0.0.3: {}
 
   tslib@2.8.1: {}
+
+  tweetnacl@1.0.3: {}
 
   typescript@5.8.3: {}
 

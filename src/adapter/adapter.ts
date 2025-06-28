@@ -6,6 +6,7 @@ import {
 } from "@solana/wallet-adapter-base";
 import { PublicKey, type TransactionVersion } from "@solana/web3.js";
 import ActioIcon from "./icon";
+import { ActioCore } from "./core";
 
 export const ActioWalletName = "Use Actio" as WalletName<"Use Actio">;
 
@@ -24,6 +25,7 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
   _readyState: WalletReadyState;
   _publicKey: PublicKey | null;
   _connecting: boolean;
+  _actio: ActioCore;
 
   constructor() {
     super();
@@ -34,6 +36,8 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
         : WalletReadyState.Installed; // since we dont use browser injection, we can assume the wallet is installed
     this._publicKey = null;
     this._connecting = false;
+    this._actio = new ActioCore();
+    this._actio.init();
   }
 
   get readyState(): WalletReadyState {
