@@ -46,11 +46,22 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     return this._connecting;
   }
 
-  signTransaction<
+  public signTransaction<
     T extends TransactionOrVersionedTransaction<
       this["supportedTransactionVersions"]
     >
   >(transaction: T): Promise<T> {
+    throw new Error("Method not implemented.");
+  }
+
+  // we dont support signing multiple transactions at once since
+  // one code = one action = one transaction
+  // maybe later we batch it
+  public signAllTransactions<
+    T extends TransactionOrVersionedTransaction<
+      this["supportedTransactionVersions"]
+    >
+  >(transactions: T[]): Promise<T[]> {
     throw new Error("Method not implemented.");
   }
 
