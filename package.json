@@ -1,0 +1,22 @@
+{
+  "name": "@useactio/wallet-adapter-solana",
+  "version": "1.0.0",
+  "description": "Solana wallet adapter for Actio Action Codes",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && vite build",
+    "playground": "tsc && vite build playground && vite preview playground",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.9.0",
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "lit": "^3.3.0"
+  }
+}
