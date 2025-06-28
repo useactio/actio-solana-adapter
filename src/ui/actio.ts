@@ -1,6 +1,8 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, html } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import ActioLogo from "./assets/logo-black-lime.svg";
+import { modal } from "./styles/modal";
+import { theme } from "./styles/theme";
 
 /**
  * An example element.
@@ -32,101 +34,38 @@ export class ActioModal extends LitElement {
   render() {
     return this.visible
       ? html`
-          <div>
-            <img src=${ActioLogo} class="logo" alt="Actio logo" />
-            <h1>Actio Modal</h1>
+          <div class="overlay">
+            <div class="modal">
+              <img src=${ActioLogo} class="logo" alt="Actio logo" />
+              <h2>Enter Your Action Code</h2>
+              <input
+                id="code-input"
+                type="text"
+                placeholder="e.g. actio-abc123"
+              />
+              <button @click=${this._submit}>Continue</button>
+            </div>
           </div>
-          <slot></slot>
-          <div class="card">
-            <button @click=${this._onClick} part="button">
-              count is ${this.count}
-            </button>
-          </div>
-          <p class="read-the-docs">${this.docsHint}</p>
         `
       : null;
   }
 
-  private _onClick() {
-    this.count++;
+  private _submit() {
+    const code = (
+      this.shadowRoot?.querySelector("#code-input") as HTMLInputElement
+    ).value;
+    this.dispatchEvent(new CustomEvent("code-submit", {
+      detail: { code },
+      bubbles: true,
+      composed: true,
+    }));
   }
 
-  static styles = css`
-    :host {
-      background-color: #000;
-      color: white;
-      padding: 2rem;
-      text-align: center;
-      border-radius: 1rem;
-      width: 100%;
-      height: 100%;
-    }
+  public setVisible(visible: boolean) {
+    this.visible = visible;
+  }
 
-    .logo {
-      height: 2em;
-      padding: 1.5em;
-      will-change: filter;
-      transition: filter 300ms;
-    }
-    .logo:hover {
-      filter: drop-shadow(0 0 2em #646cffaa);
-    }
-    .logo.lit:hover {
-      filter: drop-shadow(0 0 2em #325cffaa);
-    }
-
-    .card {
-      padding: 2em;
-    }
-
-    .read-the-docs {
-      color: #888;
-    }
-
-    ::slotted(h1) {
-      font-size: 3.2em;
-      line-height: 1.1;
-    }
-
-    a {
-      font-weight: 500;
-      color: #646cff;
-      text-decoration: inherit;
-    }
-    a:hover {
-      color: #535bf2;
-    }
-
-    button {
-      color: white;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      padding: 0.6em 1.2em;
-      font-size: 1em;
-      font-weight: 500;
-      font-family: inherit;
-      background-color: #1a1a1a;
-      cursor: pointer;
-      transition: border-color 0.25s;
-    }
-    button:hover {
-      border-color: #646cff;
-    }
-    button:focus,
-    button:focus-visible {
-      outline: 4px auto -webkit-focus-ring-color;
-    }
-
-    @media (prefers-color-scheme: light) {
-      a:hover {
-        color: #747bff;
-      }
-      button {
-        color: black;
-        background-color: #f9f9f9;
-      }
-    }
-  `;
+  static styles = [theme, modal];
 }
 
 declare global {

@@ -71,13 +71,17 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
 
   // we dont support connecting to the wallet
   // instead we trigger a popup to open Actio Modal
-  connect(): Promise<void> {
-    throw new Error("Method not implemented.");
+  async connect(): Promise<void> {
+    const publicKey = await this._actio.openModal();
+    this._publicKey = publicKey;
+    this.emit("connect", this._publicKey);
   }
 
   // we dont support disconnecting from the wallet
   // we use it as cleanup
   disconnect(): Promise<void> {
-    throw new Error("Method not implemented.");
+    this._publicKey = null;
+    this.emit("disconnect");
+    return Promise.resolve();
   }
 }
