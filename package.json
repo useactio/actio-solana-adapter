@@ -27,10 +27,11 @@
   "packageManager": "pnpm@10.9.0",
   "devDependencies": {
     "typescript": "^5.8.3",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "@actioncodes/sdk": "^1.0.4",
+    "@actioncodes/sdk": "^1.0.6",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/web3.js": "^1.98.2",
     "lit": "^3.3.0"

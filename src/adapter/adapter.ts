@@ -72,9 +72,34 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
   // we dont support connecting to the wallet
   // instead we trigger a popup to open Actio Modal
   async connect(): Promise<void> {
-    const publicKey = await this._actio.openModal();
-    this._publicKey = publicKey;
-    this.emit("connect", this._publicKey);
+    if (this._connecting) return;
+
+    try {
+      this._connecting = true;
+
+      // 1. Show modal and get code from user
+      const code = await this._actio.getModalService().show();
+
+      // 2. Fetch action details using the code
+      const action = await this._actio.getActionCodesService().getAction(code);
+
+      if (!action.intendedFor) {
+        throw new Error("Action missing intended recipient");
+      }
+
+      // 3. Extract public key from intendedFor
+      this._publicKey = new PublicKey(action.intendedFor);
+      this._connecting = false;
+      this.emit("connect", this._publicKey);
+      this._actio.getModalService().hide();
+    } catch (error) {
+      this._connecting = false;
+      if (error instanceof Error && error.message.includes("Modal closed")) {
+        this.emit("disconnect");
+        return;
+      }
+      throw error;
+    }
   }
 
   // we dont support disconnecting from the wallet
