@@ -5,7 +5,6 @@ import {
   ActionProcessingError,
   NetworkError,
 } from "../errors/index";
-import type { ActioConfig } from "../config/index";
 import type { ActionSubmissionOptions, ActionStatus } from "../types/index";
 
 /**
@@ -13,10 +12,8 @@ import type { ActionSubmissionOptions, ActionStatus } from "../types/index";
  */
 export class ActionCodesService {
   private readonly client: ActionCodesClient;
-  private readonly config: ActioConfig;
 
-  constructor(config: ActioConfig) {
-    this.config = config;
+  constructor() {
     this.client = new ActionCodesClient();
   }
 
@@ -62,13 +59,16 @@ export class ActionCodesService {
   }
 
   /**
-   * Submit an action with proper status handling
+   * Submit an action using the new task system
    */
   async submitAction(
     code: string,
     transactionBase64: string,
     options: ActionSubmissionOptions = {}
-  ): Promise<AsyncGenerator<ActionStatus, void, unknown>> {
+  ): Promise<{
+    statusStream: AsyncGenerator<ActionStatus, void, unknown>,
+    getResult: () => Promise<any>
+  }> {
     const submissionOptions = {
       label: options.label || "Actio Wallet Adapter",
       logo: options.logo || "",
@@ -81,12 +81,24 @@ export class ActionCodesService {
     };
 
     try {
-      const statusIterator = await this.client.submitAction(
+      // Submit the action and get a task object or taskId
+      const { taskId } = await this.client.submitActionWithTask(
         code,
         submissionOptions
       );
+      if (!taskId) throw new Error("No taskId returned from submitActionWithTask");
 
-      return this.processActionStatuses(statusIterator);
+      // Create a status stream (async generator) for UI updates
+      const statusStream = this._observeTaskStatus(taskId);
+
+      // Provide a function to get the final result (tx hash or signed tx)
+      const getResult = async () => {
+        const task = await this.client.waitForTaskResult(taskId);
+        // Return the relevant result (txSignature or signedTxBase64)
+        return task.result?.txSignature || task.result?.signedTxBase64 || null;
+      };
+
+      return { statusStream, getResult };
     } catch (error) {
       const enhancedError = this.enhanceNetworkError(error as Error);
       throw new ActionProcessingError(
@@ -98,19 +110,14 @@ export class ActionCodesService {
   }
 
   /**
-   * Process action status updates with proper typing
+   * Observe task status as an async generator for UI updates
    */
-  private async *processActionStatuses(
-    statusIterator: AsyncIterable<string>
-  ): AsyncGenerator<ActionStatus, void, unknown> {
+  private async *_observeTaskStatus(taskId: string): AsyncGenerator<ActionStatus, void, unknown> {
     try {
-      for await (const status of statusIterator) {
-        // Map ActionCodes statuses to our internal status types
-        const mappedStatus = this.mapActionStatus(status);
+      for await (const task of this.client.observeTaskStatus(taskId, 2000)) {
+        const mappedStatus = this.mapActionStatus(task.status);
         yield mappedStatus;
-
-        // If we reach a terminal state, break
-        if (mappedStatus === "completed" || mappedStatus === "failed") {
+        if (mappedStatus === "completed" || mappedStatus === "failed" || mappedStatus === "cancelled") {
           break;
         }
       }

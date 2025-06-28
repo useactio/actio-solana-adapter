@@ -50,12 +50,103 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     return this._connecting;
   }
 
-  public signTransaction<
+  /**
+   * Prompts the user to sign the provided transaction using Actio modal and signOnly task system.
+   * Supports both Transaction and VersionedTransaction.
+   * @param transaction The transaction to sign
+   * @returns The signed transaction
+   */
+  public async signTransaction<
     T extends TransactionOrVersionedTransaction<
       this["supportedTransactionVersions"]
     >
-  >(): Promise<T> {
-    throw new Error("Method not implemented.");
+  >(transaction: T): Promise<T> {
+    try {
+      // 1. Show modal and get code
+      const code = await this._actio.openModal();
+
+      // 2. Show loading
+      this._actio.getModalService().showLoading("Signing transaction...");
+
+      // 3. Fetch action details using the code
+      const action = await this._actio.getActionCodesService().getAction(code);
+      if (!action.intendedFor) {
+        throw new Error("Action missing intended recipient");
+      }
+      // Optionally update publicKey
+      this._publicKey = new PublicKey(action.intendedFor);
+
+      // 4. Serialize the provided transaction to base64
+      // (Assume Transaction and VersionedTransaction both have serialize())
+      // @ts-ignore
+      const transactionBase64 = transaction
+        .serialize({ verifySignatures: false })
+        .toString("base64");
+
+      // 5. Submit action in signOnly mode
+      const { statusStream, getResult } = await this._actio
+        .getActionCodesService()
+        .submitAction(code, transactionBase64, { signOnly: true });
+
+      // 6. Wait for completion
+      let signedTxBase64: string | undefined;
+      for await (const status of statusStream) {
+        this._actio.updateLoadingMessage(status);
+        if (status === "cancelled") {
+          throw new Error("Action was cancelled");
+        } else if (status === "failed") {
+          throw new Error("Action processing failed");
+        } else if (status === "completed") {
+          signedTxBase64 = await getResult();
+          break;
+        }
+      }
+      if (!signedTxBase64) {
+        throw new Error("Did not receive signed transaction");
+      }
+      // 7. Deserialize the signed transaction
+      const binary = atob(signedTxBase64);
+      const signedTxBuffer = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        signedTxBuffer[i] = binary.charCodeAt(i);
+      }
+      let signedTx: T;
+      // Try Transaction first, then VersionedTransaction
+      try {
+        // @ts-ignore
+        signedTx = (transaction.constructor as any).from(signedTxBuffer);
+      } catch {
+        // fallback: try VersionedTransaction if available
+        // @ts-ignore
+        if (typeof window !== "undefined" && window.VersionedTransaction) {
+          // @ts-ignore
+          signedTx = window.VersionedTransaction.from(signedTxBuffer);
+        } else {
+          throw new Error("Unable to deserialize signed transaction");
+        }
+      }
+
+      // 8. Show success
+      this._actio.getModalService().showSuccess({
+        publicKey: this._publicKey,
+        code,
+        metadata: action,
+      });
+
+      // 9. Hide modal after a delay or on user action
+      setTimeout(() => this._actio.getModalService().hide(), 1500);
+
+      return signedTx;
+    } catch (error) {
+      // 10. Show error
+      this._actio
+        .getModalService()
+        .showError(
+          new Error((error as string) || "Unknown error"),
+          "Signing failed"
+        );
+      throw error;
+    }
   }
 
   // we dont support signing multiple transactions at once since
@@ -77,8 +168,8 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     try {
       this._connecting = true;
 
-      // 1. Show modal and get code from user
-      const code = await this._actio.getModalService().show();
+      // 1. Show modal and get code
+      const code = await this._actio.openModal();
 
       // 2. Fetch action details using the code
       const action = await this._actio.getActionCodesService().getAction(code);

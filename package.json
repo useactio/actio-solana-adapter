@@ -31,7 +31,7 @@
     "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "@actioncodes/sdk": "^1.0.6",
+    "@actioncodes/sdk": "^1.1.0",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/web3.js": "^1.98.2",
     "lit": "^3.3.0"

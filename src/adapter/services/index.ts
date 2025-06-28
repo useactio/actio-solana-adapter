@@ -1,5 +1,4 @@
 // Export all services
-export { ConnectionService } from "./connection";
 export { ActionCodesService } from "./action-codes";
 export { ModalService } from "./modal";
 
@@ -10,4 +9,4 @@ export type {
   ActionError,
   ActionSubmissionOptions,
   ModalState,
-} from "../types/index"; 
+} from "../types/index";
