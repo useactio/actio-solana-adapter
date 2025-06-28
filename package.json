@@ -9,9 +9,17 @@
     "actio"
   ],
   "author": "Efe Behar <efe@actio.click>",
-  "main": "index.js",
+  "main": "./dist/adapter.js",
+  "types": "./dist/adapter/adapter.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/adapter/adapter.d.ts",
+      "import": "./dist/adapter.js",
+      "default": "./dist/adapter.js"
+    }
+  },
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "vite build",
     "playground": "tsc && vite build playground && vite preview playground",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

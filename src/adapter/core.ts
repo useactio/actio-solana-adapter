@@ -1,8 +1,6 @@
-import {
-  WalletConnectionError,
-  isVersionedTransaction,
-} from "@solana/wallet-adapter-base";
+import {} from "@solana/wallet-adapter-base";
 import { ActionCodesClient } from "@actioncodes/sdk";
+import "../ui/actio";
 
 export class ActioCore {
   private readonly actionCodesClient: ActionCodesClient;
@@ -20,6 +18,7 @@ export class ActioCore {
   }
 
   public mountModal(): void {
+    this.actionCodesClient.getAction('');
     // TODO: inject <actio-modal> into the DOM if not already present
   }
 

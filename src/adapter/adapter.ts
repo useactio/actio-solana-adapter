@@ -54,7 +54,7 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     T extends TransactionOrVersionedTransaction<
       this["supportedTransactionVersions"]
     >
-  >(transaction: T): Promise<T> {
+  >(): Promise<T> {
     throw new Error("Method not implemented.");
   }
 
@@ -65,7 +65,7 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     T extends TransactionOrVersionedTransaction<
       this["supportedTransactionVersions"]
     >
-  >(transactions: T[]): Promise<T[]> {
+  >(): Promise<T[]> {
     throw new Error("Method not implemented.");
   }
 

@@ -1,5 +1,5 @@
 import { LitElement, css, html } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import ActioLogo from "./assets/logo-black-lime.svg";
 
 /**
@@ -10,6 +10,8 @@ import ActioLogo from "./assets/logo-black-lime.svg";
  */
 @customElement("actio-modal")
 export class ActioModal extends LitElement {
+  @state() private visible = false; // modal visibility
+
   /**
    * Copy for the read the docs hint.
    */
@@ -22,20 +24,27 @@ export class ActioModal extends LitElement {
   @property({ type: Number })
   count = 0;
 
+  constructor() {
+    super();
+    this.visible = false; // modal visibility
+  }
+
   render() {
-    return html`
-      <div>
-        <img src=${ActioLogo} class="logo" alt="Actio logo" />
-        <h1>Actio Modal</h1>
-      </div>
-      <slot></slot>
-      <div class="card">
-        <button @click=${this._onClick} part="button">
-          count is ${this.count}
-        </button>
-      </div>
-      <p class="read-the-docs">${this.docsHint}</p>
-    `;
+    return this.visible
+      ? html`
+          <div>
+            <img src=${ActioLogo} class="logo" alt="Actio logo" />
+            <h1>Actio Modal</h1>
+          </div>
+          <slot></slot>
+          <div class="card">
+            <button @click=${this._onClick} part="button">
+              count is ${this.count}
+            </button>
+          </div>
+          <p class="read-the-docs">${this.docsHint}</p>
+        `
+      : null;
   }
 
   private _onClick() {
@@ -89,7 +98,7 @@ export class ActioModal extends LitElement {
     }
 
     button {
-      color: white; 
+      color: white;
       border-radius: 8px;
       border: 1px solid transparent;
       padding: 0.6em 1.2em;
