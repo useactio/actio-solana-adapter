@@ -2,14 +2,19 @@
   "name": "@useactio/wallet-adapter-solana",
   "version": "1.0.0",
   "description": "Solana wallet adapter for Actio Action Codes",
+  "keywords": [
+    "solana",
+    "wallet",
+    "adapter",
+    "actio"
+  ],
+  "author": "Efe Behar <efe@actio.click>",
   "main": "index.js",
   "scripts": {
     "build": "tsc && vite build",
     "playground": "tsc && vite build playground && vite preview playground",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.9.0",
   "devDependencies": {
@@ -18,6 +23,7 @@
   },
   "dependencies": {
     "@solana/wallet-adapter-base": "^0.9.27",
+    "@solana/web3.js": "^1.98.2",
     "lit": "^3.3.0"
   }
 }
