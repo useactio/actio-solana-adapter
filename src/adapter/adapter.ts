@@ -200,4 +200,8 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     this.emit("disconnect");
     return Promise.resolve();
   }
+
+  autoConnect(): Promise<void> {
+    return Promise.resolve();
+  }
 }
