@@ -17,6 +17,7 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
+    "@solana/wallet-adapter-base": "^0.9.27",
     "lit": "^3.3.0"
   }
 }
