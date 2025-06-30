@@ -148,7 +148,13 @@ export class ActioModal extends LitElement {
   };
 
   private _handleRetry = () => {
-    this.setScreen("input");
+    this.dispatchEvent(
+      new CustomEvent("modal-retry", {
+        detail: {},
+        bubbles: true,
+        composed: true,
+      })
+    );
   };
 
   private _handleClose = () => {

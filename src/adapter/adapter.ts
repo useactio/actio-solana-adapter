@@ -59,19 +59,53 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
       this["supportedTransactionVersions"]
     >
   >(transaction: T): Promise<T> {
+    const signingContext = {
+      title: "Sign Transaction",
+      description: "Enter your Actio code to sign this transaction securely.",
+      type: "Transaction Signing",
+    };
+
+    while (true) {
+      try {
+        // Get code from modal (first time or after retry)
+        const code = await this._actio.openModal({ context: signingContext });
+
+        // Try to process the transaction
+        return await this.processTransactionSigning(transaction, code);
+      } catch (error) {
+        // If user cancelled the modal (closed it), throw the error
+        if (
+          error instanceof Error &&
+          error.message.includes("Modal closed")
+        ) {
+          this._actio.getModalService().reset();
+          throw error;
+        }
+
+        // For any other error (including action cancellation), show error and let user retry
+        this._actio.getModalService().showError(
+          error instanceof Error ? error : new Error(String(error)),
+          "Signing failed"
+        );
+
+        // The modal service will handle the retry flow automatically
+        // We just need to continue the loop to get a new code
+        continue;
+      }
+    }
+  }
+
+  /**
+   * Process transaction signing with a given code
+   */
+  private async processTransactionSigning<
+    T extends TransactionOrVersionedTransaction<
+      this["supportedTransactionVersions"]
+    >
+  >(transaction: T, code: string): Promise<T> {
+    this._actio.getModalService().showLoading("Signing transaction...");
+
     try {
-      const signingContext = {
-        title: "Sign Transaction",
-        description: "Enter your Actio code to sign this transaction securely.",
-        type: "Transaction Signing",
-      };
-
-      const code = await this._actio.openModal({
-        context: signingContext,
-      });
-
-      this._actio.getModalService().showLoading("Signing transaction...");
-
       const action = await this._actio.getActionCodesService().getAction(code);
       if (!action.intendedFor) {
         throw new Error("Action missing intended recipient");
@@ -91,7 +125,7 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
       }
       if (!this._publicKey.equals(sessionValidation.publicKey)) {
         throw new Error(
-          "Session wallet does not match action's intended recipient."
+          "Something went wrong. Please check your code or try again."
         );
       }
 
@@ -141,13 +175,8 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
 
       return signedTx;
     } catch (error) {
-      this._actio.getModalService().reset();
-      this._actio
-        .getModalService()
-        .showError(
-          new Error((error as string) || "Unknown error"),
-          "Signing failed"
-        );
+      // Hide loading and re-throw error to be handled by the main loop
+      this._actio.getModalService().hide();
       throw error;
     }
   }

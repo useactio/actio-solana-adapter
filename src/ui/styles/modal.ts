@@ -378,4 +378,17 @@ export const modal = css`
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(136, 231, 85, 0.1);
   }
+
+  .btn-half {
+    width: 50%;
+  }
+
+  @media (max-width: 480px) {
+    .error-actions {
+      flex-direction: column;
+    }
+    .btn-half {
+      width: 100%;
+    }
+  }
 `;

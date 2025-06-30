@@ -11,7 +11,7 @@ import { type ActionStatus } from "@useactio/sdk";
 /**
  * Core class for the Actio Solana Adapter
  *
- * Provides a modular, type-safe interface for handling ActionCodes
+ * Provides a modular, type-safe interface for handling Action Codes
  * with proper error handling and UI management.
  */
 export class ActioCore {
@@ -53,35 +53,42 @@ export class ActioCore {
    * Returns the code entered by the user
    */
   public async openModal(options?: ActionSubmissionOptions): Promise<string> {
-    try {
-      // Create action context from options and current origin
-      const context = this.createActionContext(options);
-      this.modalService.setActionContext(context);
-      const code = await this.modalService.show();
-      return code;
-    } catch (error) {
-      console.log("openModal caught error:", error);
-      if (
-        error instanceof Error &&
-        (error.message.includes("Modal closed") ||
-          error.message.includes("Action was cancelled"))
-      ) {
-        this.modalService.hide();
-        throw error;
+    // Create action context from options and current origin
+    const context = this.createActionContext(options);
+    this.modalService.setActionContext(context);
+
+    while (true) {
+      try {
+        const code = await this.modalService.show();
+        return code;
+      } catch (error) {
+        // If user closed/cancelled, propagate error
+        if (
+          error instanceof Error &&
+          (error.message.includes("Modal closed") ||
+            error.message.includes("Action was cancelled"))
+        ) {
+          this.modalService.hide();
+          throw error;
+        }
+        
+        // Show error and allow retry
+        if (
+          error instanceof Error &&
+          error.message === "Action did not complete successfully."
+        ) {
+          this.modalService.showError(
+            new Error("Action did not complete successfully."),
+            "Something went wrong"
+          );
+        } else {
+          const actioError = toActioError(error);
+          this.modalService.showError(actioError);
+        }
+        
+        // Wait for retry - just continue the loop
+        continue; // This will call show() again in the next iteration
       }
-      if (
-        error instanceof Error &&
-        error.message === "Action did not complete successfully."
-      ) {
-        this.modalService.showError(
-          new Error("Action did not complete successfully."),
-          "Something went wrong"
-        );
-      } else {
-        const actioError = toActioError(error);
-        this.modalService.showError(actioError);
-      }
-      throw error;
     }
   }
 
@@ -109,7 +116,7 @@ export class ActioCore {
         throw new ActioConnectionError("Session is not valid. Please reconnect your wallet.");
       }
       if (!publicKey.equals(sessionValidation.publicKey)) {
-        throw new ActioConnectionError("Session wallet does not match action's intended recipient.");
+        throw new ActioConnectionError("Something went wrong. Please check your code or try again.");
       }
 
       return { publicKey, code, metadata: action };
@@ -261,7 +268,7 @@ export class ActioCore {
       origin,
       title: options?.context?.title || "Connect Wallet",
       description: options?.context?.description || 
-        "Enter your Actio code to connect your wallet securely.",
+        "Enter your Action code to connect your wallet securely.",
       type: "Wallet Connection",
       favicon,
       metadata: options?.context?.metadata,
@@ -279,15 +286,21 @@ export class ActioCore {
    * Update loading message based on action status
    */
   public updateLoadingMessage(status: ActionStatus): void {
-    const messages: Record<ActionStatus, string> = {
-      pending: "Preparing...",
-      ready: "Please check your wallet to complete action",
-      completed: "Action completed!",
-      failed: "Action failed",
-      cancelled: "Action cancelled",
+    const titles: Record<ActionStatus, string> = {
+      pending: "Waiting for Action",
+      ready: "Action Ready",
+      completed: "Done!",
+      failed: "Something Went Wrong",
+      cancelled: "Action Cancelled",
     };
-
-    this.modalService.showLoading(messages[status]);
+    const messages: Record<ActionStatus, string> = {
+      pending: "Enter your code to continue.",
+      ready: "Confirm this in your wallet.",
+      completed: "You may now close this window.",
+      failed: "Please check your code or try again.",
+      cancelled: "This code has expired or was rejected.",
+    };
+    this.modalService.showLoading(`${titles[status]}\n${messages[status]}`);
   }
 
   /**

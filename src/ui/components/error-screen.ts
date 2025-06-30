@@ -26,9 +26,13 @@ export class ActioErrorScreen extends LitElement {
   onClose?: () => void;
 
   private _handleRetry() {
-    if (this.onRetry) {
-      this.onRetry();
-    }
+    this.dispatchEvent(
+      new CustomEvent("modal-retry", {
+        detail: {},
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   private _handleClose() {
@@ -66,10 +70,10 @@ export class ActioErrorScreen extends LitElement {
             : ""}
 
           <div class="error-actions">
-            <button class="btn btn-primary" @click=${this._handleRetry}>
+            <button class="btn btn-primary btn-half" @click=${this._handleRetry}>
               Try Again
             </button>
-            <button class="btn btn-secondary" @click=${this._handleClose}>
+            <button class="btn btn-secondary btn-half" @click=${this._handleClose}>
               Cancel
             </button>
           </div>

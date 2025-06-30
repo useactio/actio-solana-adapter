@@ -13,6 +13,10 @@ export class ModalService {
     resolve: (value: string) => void;
     reject: (error: Error) => void;
   } | null = null;
+  private retryPromise: {
+    resolve: () => void;
+    reject: (error: Error) => void;
+  } | null = null;
 
   /**
    * Initialize and mount the modal
@@ -45,6 +49,17 @@ export class ModalService {
       if (this.currentPromise && code) {
         this.currentPromise.resolve(code);
         this.currentPromise = null;
+      }
+    });
+
+    // Handle retry from error screen
+    this.modal.addEventListener("modal-retry", () => {
+      if (this.modal) {
+        // Switch to input screen
+        this.modal.setScreen("input");
+        
+        // DON'T resolve the promise here - let the user enter a new code
+        // The promise will be resolved when the user submits the new code
       }
     });
 
@@ -85,12 +100,15 @@ export class ModalService {
       throw new Error("Modal not initialized");
     }
 
-    // Reset modal state
-    this.reset();
-
-    // Show modal with input screen
-    this.modal.setVisible(true);
-    this.modal.setScreen("input");
+    // Only reset and show if there's no current promise (first time) AND we're not on error screen
+    if (!this.currentPromise && this.getState().screen !== "error") {
+      this.reset();
+      this.modal.setVisible(true);
+      this.modal.setScreen("input");
+    } else if (!this.currentPromise && this.getState().screen === "error") {
+      // Don't reset, just make sure modal is visible
+      this.modal.setVisible(true);
+    }
 
     // Return promise that resolves with user input
     return new Promise((resolve, reject) => {
@@ -162,7 +180,10 @@ export class ModalService {
       }
     }
 
-    // Only show title and message, never error details in UI
+    // Remove 'Error: ' prefix if present
+    if (errorMessage.startsWith('Error: ')) {
+      errorMessage = errorMessage.slice(7);
+    }
     this.modal.showError(errorTitle, errorMessage);
   }
 
@@ -209,12 +230,7 @@ export class ModalService {
     if (this.modal) {
       this.modal.reset();
     }
-
-    // Clear any pending promises
-    if (this.currentPromise) {
-      this.currentPromise.reject(new Error("Modal reset"));
-      this.currentPromise = null;
-    }
+    // Do not reject the currentPromise here; only reset UI.
   }
 
   /**
@@ -259,5 +275,14 @@ export class ModalService {
       }
       this.modal = null;
     }
+  }
+
+  /**
+   * Wait for retry action
+   */
+  async waitForRetry(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.retryPromise = { resolve, reject };
+    });
   }
 }
