@@ -101,6 +101,17 @@ export class ActioCore {
         throw new ActioConnectionError("Action missing intended recipient");
       }
       const publicKey = new PublicKey(action.intendedFor);
+
+      // Step 2: Validate session wallet matches intendedFor
+      const origin = this.getCurrentOrigin();
+      const sessionValidation = await this.sessionService.validateSession(origin);
+      if (!sessionValidation.isValid || !sessionValidation.publicKey) {
+        throw new ActioConnectionError("Session is not valid. Please reconnect your wallet.");
+      }
+      if (!publicKey.equals(sessionValidation.publicKey)) {
+        throw new ActioConnectionError("Session wallet does not match action's intended recipient.");
+      }
+
       return { publicKey, code, metadata: action };
     } catch (error) {
       throw toActioError(error);
@@ -136,7 +147,7 @@ export class ActioCore {
       const code = await this.modalService.show();
       
       // 3. Show loading while creating session
-      this.modalService.showLoading("Creating secure session...");
+      this.modalService.showLoading("Waiting for you to approve in your wallet...");
       
       // 4. Create session with the code
       const { session, publicKey } = await this.sessionService.createSession(code, origin);
@@ -145,7 +156,7 @@ export class ActioCore {
       this.modalService.showSuccess({
         publicKey,
         code,
-        metadata: { type: "session_created" },
+        metadata: { type: "connected" },
       });
 
       return {
