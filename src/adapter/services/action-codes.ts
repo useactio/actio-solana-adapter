@@ -1,11 +1,14 @@
-import { ActionCodesClient } from "@actioncodes/sdk";
+import {
+  ActionCodesClient,
+  type ActionPayload,
+  type ActionStatus,
+} from "@useactio/sdk";
 import { PublicKey } from "@solana/web3.js";
 import {
   InvalidActionCodeError,
   ActionProcessingError,
   NetworkError,
 } from "../errors/index";
-import type { ActionSubmissionOptions, ActionStatus } from "../types/index";
 
 /**
  * Service for handling ActionCodes SDK operations
@@ -51,7 +54,7 @@ export class ActionCodesService {
       if (error instanceof InvalidActionCodeError) {
         throw error;
       }
-      
+
       // Enhanced error handling with specific error types
       const enhancedError = this.enhanceNetworkError(error as Error);
       throw enhancedError;
@@ -59,47 +62,37 @@ export class ActionCodesService {
   }
 
   /**
-   * Submit an action using the new task system
+   * Submit an action and wait for its result in a single call
    */
   async submitAction(
     code: string,
-    transactionBase64: string,
-    options: ActionSubmissionOptions = {}
-  ): Promise<{
-    statusStream: AsyncGenerator<ActionStatus, void, unknown>,
-    getResult: () => Promise<any>
-  }> {
-    const submissionOptions = {
-      label: options.label || "Actio Wallet Adapter",
-      logo: options.logo || "",
-      memo: options.memo || "",
-      message:
-        options.message ||
-        "You are about to sign a transaction via Actio Wallet Adapter",
-      signOnly: options.signOnly ?? true,
-      transactionBase64,
-    };
-
+    payload: ActionPayload,
+    timeoutMs?: number
+  ): Promise<{ status: ActionStatus; result: any; rawTask: any }> {
     try {
-      // Submit the action and get a task object or taskId
-      const { taskId } = await this.client.submitActionWithTask(
-        code,
-        submissionOptions
-      );
-      if (!taskId) throw new Error("No taskId returned from submitActionWithTask");
-
-      // Create a status stream (async generator) for UI updates
-      const statusStream = this._observeTaskStatus(taskId);
-
-      // Provide a function to get the final result (tx hash or signed tx)
-      const getResult = async () => {
-        const task = await this.client.waitForTaskResult(taskId);
-        // Return the relevant result (txSignature or signedTxBase64)
-        return task.result?.txSignature || task.result?.signedTxBase64 || null;
+      // Submit the action and wait for its result in a single call
+      const task = await this.client.submitAndWait(code, payload, timeoutMs);
+      // Return both the status and the relevant result
+      return {
+        status: task.status,
+        result: task.result?.txSignature || task.result?.signedTxBase64 || null,
+        rawTask: task,
       };
-
-      return { statusStream, getResult };
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === "TaskTimeoutError") {
+        throw new ActionProcessingError(
+          "Task did not complete in time",
+          "TASK_TIMEOUT",
+          error
+        );
+      }
+      if (error.name === "TaskNotFoundError") {
+        throw new ActionProcessingError(
+          "Task not found",
+          "TASK_NOT_FOUND",
+          error
+        );
+      }
       const enhancedError = this.enhanceNetworkError(error as Error);
       throw new ActionProcessingError(
         "Failed to submit action",
@@ -110,55 +103,6 @@ export class ActionCodesService {
   }
 
   /**
-   * Observe task status as an async generator for UI updates
-   */
-  private async *_observeTaskStatus(taskId: string): AsyncGenerator<ActionStatus, void, unknown> {
-    try {
-      for await (const task of this.client.observeTaskStatus(taskId, 2000)) {
-        const mappedStatus = this.mapActionStatus(task.status);
-        yield mappedStatus;
-        if (mappedStatus === "completed" || mappedStatus === "failed" || mappedStatus === "cancelled") {
-          break;
-        }
-      }
-    } catch (error) {
-      const enhancedError = this.enhanceNetworkError(error as Error);
-      throw new ActionProcessingError(
-        "Action processing failed",
-        "PROCESSING_ERROR",
-        enhancedError
-      );
-    }
-  }
-
-  /**
-   * Map ActionCodes status strings to our typed status
-   */
-  private mapActionStatus(status: string): ActionStatus {
-    switch (status.toLowerCase()) {
-      case "pending":
-      case "validating":
-        return "validating";
-      case "processing":
-      case "executing":
-        return "processing";
-      case "signing":
-        return "signing";
-      case "submitting":
-      case "broadcasting":
-        return "submitting";
-      case "completed":
-      case "success":
-        return "completed";
-      case "failed":
-      case "error":
-        return "failed";
-      default:
-        console.warn(`Unknown action status: ${status}`);
-        return "processing";
-    }
-  }
-
   /**
    * Get the resolved action after completion
    */
@@ -180,85 +124,85 @@ export class ActionCodesService {
    */
   private enhanceNetworkError(error: Error): NetworkError {
     const errorMessage = error.message.toLowerCase();
-    
+
     // CORS Error Detection
     if (
-      errorMessage.includes('cors') ||
-      errorMessage.includes('access-control-allow-origin') ||
-      errorMessage.includes('preflight') ||
-      (errorMessage.includes('fetch') && errorMessage.includes('blocked'))
+      errorMessage.includes("cors") ||
+      errorMessage.includes("access-control-allow-origin") ||
+      errorMessage.includes("preflight") ||
+      (errorMessage.includes("fetch") && errorMessage.includes("blocked"))
     ) {
-             return new NetworkError(
-         "Unable to connect to Actio services due to browser security restrictions. This usually happens when the website hasn't been properly configured to work with Actio.",
-         error
-       );
+      return new NetworkError(
+        "Unable to connect to Actio services due to browser security restrictions. This usually happens when the website hasn't been properly configured to work with Actio.",
+        error
+      );
     }
 
-         // Network/Connection Errors  
-     if (
-       errorMessage.includes('failed to fetch') ||
-       errorMessage.includes('network error') ||
-       errorMessage.includes('fetch error')
-     ) {
-       return new NetworkError(
-         "Unable to connect to Actio services. Please check your internet connection and try again.",
-         error
-       );
-     }
+    // Network/Connection Errors
+    if (
+      errorMessage.includes("failed to fetch") ||
+      errorMessage.includes("network error") ||
+      errorMessage.includes("fetch error")
+    ) {
+      return new NetworkError(
+        "Unable to connect to Actio services. Please check your internet connection and try again.",
+        error
+      );
+    }
 
-     // Timeout Errors
-     if (
-       errorMessage.includes('timeout') ||
-       errorMessage.includes('timed out')
-     ) {
-       return new NetworkError(
-         "Request timed out. The Actio service might be temporarily unavailable. Please try again.",
-         error
-       );
-     }
+    // Timeout Errors
+    if (
+      errorMessage.includes("timeout") ||
+      errorMessage.includes("timed out")
+    ) {
+      return new NetworkError(
+        "Request timed out. The Actio service might be temporarily unavailable. Please try again.",
+        error
+      );
+    }
 
-     // 4xx Client Errors
-     if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
-       return new NetworkError(
-         "Invalid request. Please check your action code and try again.",
-         error
-       );
-     }
+    // 4xx Client Errors
+    if (errorMessage.includes("400") || errorMessage.includes("bad request")) {
+      return new NetworkError(
+        "Invalid request. Please check your action code and try again.",
+        error
+      );
+    }
 
-     if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
-       return new NetworkError(
-         "Unauthorized access. Your action code may have expired or be invalid.",
-         error
-       );
-     }
+    if (errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
+      return new NetworkError(
+        "Unauthorized access. Your action code may have expired or be invalid.",
+        error
+      );
+    }
 
-     if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-       return new NetworkError(
-         "Action not found. Please check your action code and try again.",
-         error
-       );
-     }
+    if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+      return new NetworkError(
+        "Action not found. Please check your action code and try again.",
+        error
+      );
+    }
 
-     // 5xx Server Errors
-     if (
-       errorMessage.includes('500') ||
-       errorMessage.includes('502') ||
-       errorMessage.includes('503') ||
-       errorMessage.includes('504') ||
-       errorMessage.includes('server error') ||
-       errorMessage.includes('internal server error') ||
-       errorMessage.includes('service unavailable')
-     ) {
-       return new NetworkError(
-         "Actio services are temporarily unavailable. Please try again in a few moments.",
-         error
-       );
-     }
+    // 5xx Server Errors
+    if (
+      errorMessage.includes("500") ||
+      errorMessage.includes("502") ||
+      errorMessage.includes("503") ||
+      errorMessage.includes("504") ||
+      errorMessage.includes("server error") ||
+      errorMessage.includes("internal server error") ||
+      errorMessage.includes("service unavailable")
+    ) {
+      return new NetworkError(
+        "Actio services are temporarily unavailable. Please try again in a few moments.",
+        error
+      );
+    }
 
-     // Generic network error
-     return new NetworkError(
-       "Unable to connect to Actio services. Please check your internet connection and try again.",
-       error
-     );
+    // Generic network error
+    return new NetworkError(
+      "Unable to connect to Actio services. Please check your internet connection and try again.",
+      error
+    );
   }
 }

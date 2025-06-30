@@ -1,13 +1,12 @@
 import { PublicKey } from "@solana/web3.js";
-import { createConfig, type ActioConfig } from "./config/index";
 import { ActionCodesService, ModalService } from "./services/index";
 import { ActioConnectionError, toActioError } from "./errors/index";
 import type {
   ActionResult,
-  ActionStatus,
   ActionSubmissionOptions,
   ActionContext,
 } from "./types/index";
+import { type ActionStatus } from "@useactio/sdk";
 
 /**
  * Core class for the Actio Solana Adapter
@@ -16,12 +15,10 @@ import type {
  * with proper error handling and UI management.
  */
 export class ActioCore {
-  private readonly config: ActioConfig;
   private readonly actionCodesService: ActionCodesService;
   private readonly modalService: ModalService;
 
-  constructor(userConfig: Partial<ActioConfig> = {}) {
-    this.config = createConfig(userConfig);
+  constructor() {
     this.actionCodesService = new ActionCodesService();
     this.modalService = new ModalService();
   }
@@ -90,7 +87,6 @@ export class ActioCore {
    */
   public async processAction(
     code: string,
-    options?: ActionSubmissionOptions
   ): Promise<{ publicKey: PublicKey; code: string; metadata: any }> {
     try {
       // Step 1: Validate and fetch action details
@@ -147,11 +143,8 @@ export class ActioCore {
    */
   public updateLoadingMessage(status: ActionStatus): void {
     const messages: Record<ActionStatus, string> = {
-      idle: "Preparing...",
-      validating: "Validating action...",
-      processing: "Please check your wallet to complete action",
-      signing: "Waiting for signature...",
-      submitting: "Submitting transaction...",
+      pending: "Preparing...",
+      ready: "Please check your wallet to complete action",
       completed: "Action completed!",
       failed: "Action failed",
       cancelled: "Action cancelled",
@@ -165,35 +158,6 @@ export class ActioCore {
    */
   public isInitialized(): boolean {
     return this.modalService.isAvailable();
-  }
-
-  /**
-   * Get current configuration
-   */
-  public getConfig(): ActioConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Get network information
-   */
-  public async getNetworkInfo() {
-    // This method is no longer used in the updated code
-  }
-
-  /**
-   * Test network connection
-   */
-  public async testConnection(): Promise<boolean> {
-    // This method is no longer used in the updated code
-    return true; // Placeholder return, actual implementation needed
-  }
-
-  /**
-   * Update RPC endpoint
-   */
-  public updateRpcEndpoint(endpoint: string): void {
-    // This method is no longer used in the updated code
   }
 
   /**

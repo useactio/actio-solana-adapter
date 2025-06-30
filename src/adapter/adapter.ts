@@ -84,26 +84,30 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
         .toString("base64");
 
       // 5. Submit action in signOnly mode
-      const { statusStream, getResult } = await this._actio
+      const { status, result } = await this._actio
         .getActionCodesService()
-        .submitAction(code, transactionBase64, { signOnly: true });
+        .submitAction(code, {
+          label: this.name,
+          logo: "",
+          memo: "",
+          message:
+            "You are about to sign a transaction via Actio Wallet Adapter",
+          signOnly: true,
+          transactionBase64,
+        });
 
-      // 6. Wait for completion
-      let signedTxBase64: string | undefined;
-      for await (const status of statusStream) {
-        this._actio.updateLoadingMessage(status);
-        if (status === "cancelled") {
-          throw new Error("Action was cancelled");
-        } else if (status === "failed") {
-          throw new Error("Action processing failed");
-        } else if (status === "completed") {
-          signedTxBase64 = await getResult();
-          break;
-        }
+      // 6. Handle status and result
+      if (status === "failed") {
+        throw new Error("Action failed");
       }
-      if (!signedTxBase64) {
+      if (status === "cancelled") {
+        throw new Error("Action was cancelled");
+      }
+      if (!result) {
         throw new Error("Did not receive signed transaction");
       }
+      const signedTxBase64 = result;
+
       // 7. Deserialize the signed transaction
       const binary = atob(signedTxBase64);
       const signedTxBuffer = new Uint8Array(binary.length);

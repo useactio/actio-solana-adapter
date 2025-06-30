@@ -1,17 +1,5 @@
-import { PublicKey, Transaction } from "@solana/web3.js";
-
-/**
- * Status of an action processing flow
- */
-export type ActionStatus = 
-  | "idle"
-  | "validating" 
-  | "processing"
-  | "signing"
-  | "submitting"
-  | "completed"
-  | "failed"
-  | "cancelled";
+import { PublicKey } from "@solana/web3.js";
+import { type ActionStatus } from "@useactio/sdk";
 
 /**
  * Result of a successful action processing
@@ -70,9 +58,9 @@ export interface ActionContext {
  */
 export interface ActionEvents {
   "status-change": ActionStatus;
-  "progress": { message: string; progress?: number };
-  "error": ActionError;
-  "success": ActionResult;
+  progress: { message: string; progress?: number };
+  error: ActionError;
+  success: ActionResult;
 }
 
 /**
@@ -105,4 +93,4 @@ export interface ActionSubmissionOptions {
   signOnly?: boolean;
   /** Action context for better UX */
   context?: Partial<ActionContext>;
-} 
+}

@@ -4,7 +4,6 @@ export { ModalService } from "./modal";
 
 // Re-export types for convenience
 export type {
-  ActionStatus,
   ActionResult,
   ActionError,
   ActionSubmissionOptions,
