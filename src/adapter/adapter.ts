@@ -62,8 +62,16 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     >
   >(transaction: T): Promise<T> {
     try {
-      // 1. Show modal and get code
-      const code = await this._actio.openModal();
+      // 1. Show modal and get code with signing-specific context
+      const signingContext = {
+        title: "Sign Transaction",
+        description: "Enter your Actio code to sign this transaction securely.",
+        type: "Transaction Signing",
+      };
+      
+      const code = await this._actio.openModal({
+        context: signingContext,
+      });
 
       // 2. Show loading
       this._actio.getModalService().showLoading("Signing transaction...");
@@ -76,12 +84,9 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
       // Optionally update publicKey
       this._publicKey = new PublicKey(action.intendedFor);
 
-      // 4. Serialize the provided transaction to base64
-      // (Assume Transaction and VersionedTransaction both have serialize())
-      // @ts-ignore
-      const transactionBase64 = transaction
-        .serialize({ verifySignatures: false })
-        .toString("base64");
+      // 4. Serialize the provided transaction to base64 using browser-native utilities
+      const serializedTx = transaction.serialize({ verifySignatures: false });
+      const transactionBase64 = this.arrayBufferToBase64(serializedTx);
 
       // 5. Submit action in signOnly mode
       const { status, result } = await this._actio
@@ -108,12 +113,9 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
       }
       const signedTxBase64 = result;
 
-      // 7. Deserialize the signed transaction
-      const binary = atob(signedTxBase64);
-      const signedTxBuffer = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        signedTxBuffer[i] = binary.charCodeAt(i);
-      }
+      // 7. Deserialize the signed transaction using browser-native atob
+      const signedTxBuffer = this.base64ToArrayBuffer(signedTxBase64);
+      
       let signedTx: T;
       // Try Transaction first, then VersionedTransaction
       try {
@@ -142,7 +144,8 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
 
       return signedTx;
     } catch (error) {
-      // 10. Show error
+      // 10. Reset modal and show error
+      this._actio.getModalService().reset();
       this._actio
         .getModalService()
         .showError(
@@ -164,31 +167,34 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     throw new Error("Method not implemented.");
   }
 
-  // we dont support connecting to the wallet
-  // instead we trigger a popup to open Actio Modal
+  // Connect to wallet with session management
   async connect(): Promise<void> {
     if (this._connecting) return;
 
     try {
       this._connecting = true;
 
-      // 1. Show modal and get code
-      const code = await this._actio.openModal();
+      // Use the new session-aware connection
+      const { publicKey, isNewSession } = await this._actio.connectWallet({
+        context: {
+          title: "Connect Wallet",
+          description: "Connect your wallet to continue",
+        },
+      });
 
-      // 2. Fetch action details using the code
-      const action = await this._actio.getActionCodesService().getAction(code);
-
-      if (!action.intendedFor) {
-        throw new Error("Action missing intended recipient");
-      }
-
-      // 3. Extract public key from intendedFor
-      this._publicKey = new PublicKey(action.intendedFor);
+      this._publicKey = publicKey;
       this._connecting = false;
       this.emit("connect", this._publicKey);
-      this._actio.getModalService().hide();
+
+      // Only hide modal if this was a new session (user entered code)
+      if (isNewSession) {
+        // Give user a moment to see the success message
+        setTimeout(() => this._actio.getModalService().hide(), 1000);
+      }
     } catch (error) {
       this._connecting = false;
+      this._actio.getModalService().reset();
+      
       if (error instanceof Error && error.message.includes("Modal closed")) {
         this.emit("disconnect");
         return;
@@ -197,15 +203,54 @@ export class ActioWalletAdapter extends BaseSignerWalletAdapter {
     }
   }
 
-  // we dont support disconnecting from the wallet
-  // we use it as cleanup
+  // Disconnect and clear session
   disconnect(): Promise<void> {
     this._publicKey = null;
+    this._actio.disconnectWallet();
     this.emit("disconnect");
     return Promise.resolve();
   }
 
-  autoConnect(): Promise<void> {
-    return Promise.resolve();
+  // Auto-connect using session if available
+  async autoConnect(): Promise<void> {
+    try {
+      const isConnected = await this._actio.isWalletConnected();
+      if (isConnected) {
+        const publicKey = await this._actio.getConnectedWallet();
+        if (publicKey) {
+          this._publicKey = publicKey;
+          this.emit("connect", this._publicKey);
+        }
+      }
+    } catch (error) {
+      // Auto-connect failures should be silent
+      console.warn("Auto-connect failed:", error);
+    }
+  }
+
+  /**
+   * Convert Uint8Array to base64 string using browser-native btoa
+   */
+  private arrayBufferToBase64(buffer: Uint8Array): string {
+    // Convert Uint8Array to binary string
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    // Convert to base64 using browser-native btoa
+    return btoa(binary);
+  }
+
+  /**
+   * Convert base64 string to Uint8Array using browser-native atob
+   */
+  private base64ToArrayBuffer(base64: string): Uint8Array {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
   }
 }

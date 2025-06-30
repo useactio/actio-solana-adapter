@@ -1,5 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import { ActionCodesService, ModalService } from "./services/index";
+import { ActionCodesService, ModalService, SessionService } from "./services/index";
 import { ActioConnectionError, toActioError } from "./errors/index";
 import type {
   ActionResult,
@@ -17,10 +17,12 @@ import { type ActionStatus } from "@useactio/sdk";
 export class ActioCore {
   private readonly actionCodesService: ActionCodesService;
   private readonly modalService: ModalService;
+  private readonly sessionService: SessionService;
 
   constructor() {
     this.actionCodesService = new ActionCodesService();
     this.modalService = new ModalService();
+    this.sessionService = new SessionService(this.actionCodesService);
   }
 
   public getActionCodesService(): ActionCodesService {
@@ -29,6 +31,10 @@ export class ActioCore {
 
   public getModalService(): ModalService {
     return this.modalService;
+  }
+
+  public getSessionService(): SessionService {
+    return this.sessionService;
   }
 
   /**
@@ -102,6 +108,92 @@ export class ActioCore {
   }
 
   /**
+   * Connect wallet with session management
+   * First tries to restore from session, then falls back to code entry
+   */
+  public async connectWallet(options?: ActionSubmissionOptions): Promise<{
+    publicKey: PublicKey;
+    isNewSession: boolean;
+    session?: any;
+  }> {
+    const origin = this.getCurrentOrigin();
+
+    try {
+      // 1. Try to restore from existing session
+      const sessionValidation = await this.sessionService.validateSession(origin);
+      if (sessionValidation.isValid && sessionValidation.publicKey) {
+        return {
+          publicKey: sessionValidation.publicKey,
+          isNewSession: false,
+        };
+      }
+
+      // 2. No valid session, create new one via code entry
+      // Show modal with connection-specific context
+      const connectionContext = this.createConnectionContext(options);
+      this.modalService.setActionContext(connectionContext);
+      
+      const code = await this.modalService.show();
+      
+      // 3. Show loading while creating session
+      this.modalService.showLoading("Creating secure session...");
+      
+      // 4. Create session with the code
+      const { session, publicKey } = await this.sessionService.createSession(code, origin);
+
+      // 5. Show success briefly
+      this.modalService.showSuccess({
+        publicKey,
+        code,
+        metadata: { type: "session_created" },
+      });
+
+      return {
+        publicKey,
+        isNewSession: true,
+        session,
+      };
+    } catch (error) {
+      // Reset modal on any error
+      this.modalService.reset();
+      
+      if (error instanceof Error && error.message.includes("Modal closed")) {
+        throw error;
+      }
+      
+      // Show error and re-throw
+      const actioError = toActioError(error);
+      this.modalService.showError(actioError, "Connection Failed");
+      throw error;
+    }
+  }
+
+  /**
+   * Disconnect wallet and clear session
+   */
+  public disconnectWallet(): void {
+    this.sessionService.clearSession();
+    this.modalService.reset();
+  }
+
+  /**
+   * Check if wallet is connected (has valid session)
+   */
+  public async isWalletConnected(): Promise<boolean> {
+    const origin = this.getCurrentOrigin();
+    return await this.sessionService.hasValidSession(origin);
+  }
+
+  /**
+   * Get connected wallet public key if available
+   */
+  public async getConnectedWallet(): Promise<PublicKey | null> {
+    const origin = this.getCurrentOrigin();
+    const sessionValidation = await this.sessionService.validateSession(origin);
+    return sessionValidation.isValid ? sessionValidation.publicKey || null : null;
+  }
+
+  /**
    * Create action context from current environment and options
    */
   private createActionContext(
@@ -138,6 +230,40 @@ export class ActioCore {
 
     return context;
   }
+
+  /**
+   * Create connection-specific context for wallet connection
+   */
+  private createConnectionContext(
+    options?: ActionSubmissionOptions
+  ): ActionContext {
+    const origin = this.getCurrentOrigin();
+    
+    const favicon =
+      typeof document !== "undefined"
+        ? document.querySelector<HTMLLinkElement>(
+            'link[rel="icon"], link[rel="shortcut icon"]'
+          )?.href
+        : options?.context?.favicon;
+
+    return {
+      origin,
+      title: options?.context?.title || "Connect Wallet",
+      description: options?.context?.description || 
+        "Enter your Actio code to connect your wallet securely.",
+      type: "Wallet Connection",
+      favicon,
+      metadata: options?.context?.metadata,
+    };
+  }
+
+  /**
+   * Get current origin for session management
+   */
+  private getCurrentOrigin(): string {
+    return typeof window !== "undefined" ? window.location.hostname : "Unknown Origin";
+  }
+
   /**
    * Update loading message based on action status
    */

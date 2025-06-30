@@ -15,8 +15,8 @@ importers:
         specifier: ^1.98.2
         version: 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@useactio/sdk':
-        specifier: ^1.1.3
-        version: 1.1.3(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react@19.1.0)
+        specifier: ^1.1.4
+        version: 1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react@19.1.0)
       lit:
         specifier: ^3.3.0
         version: 3.3.0
@@ -431,8 +431,8 @@ packages:
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
-  '@useactio/sdk@1.1.3':
-    resolution: {integrity: sha512-k+M2AuxKPAsKFwDKRmF3FU0x11VgaAyBp0HSJPeHBNQ3YgJWcDsn8YWaIiaft8gvV1X5dpaDTPeaqdxDuJgsfA==}
+  '@useactio/sdk@1.1.4':
+    resolution: {integrity: sha512-wpNE/RLbEqI87ntGLQKUM5KOsRst859PrXlPQ3E7iqUhgwHdSQEoT3ZHVCdnALYFd9JT24XWljq6M9dMKhuNYw==}
     peerDependencies:
       '@solana/web3.js': ^1.98.2
       react: '>=17.0.0'
@@ -1310,7 +1310,7 @@ snapshots:
     dependencies:
       '@types/node': 24.0.6
 
-  '@useactio/sdk@1.1.3(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@useactio/sdk@1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
       '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       js-sha256: 0.11.1
