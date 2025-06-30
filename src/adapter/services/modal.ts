@@ -154,13 +154,11 @@ export class ModalService {
       // Show technical details if needed
       if (networkError.originalError) {
         // errorDetails = `Technical details: ${networkError.originalError.message}`;
-        console.error("Actio network error:", networkError.originalError);
       }
     } else {
       errorMessage = error.message || errorMessage;
       // errorDetails = error.stack;
       if (error.stack) {
-        console.error("Actio error stack:", error.stack);
       }
     }
 

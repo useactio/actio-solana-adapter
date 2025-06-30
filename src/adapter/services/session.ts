@@ -50,15 +50,12 @@ export class SessionService {
     origin: string
   ): Promise<{ session: ActioSession; publicKey: PublicKey }> {
     try {
-      console.log("Creating session for code:", code, "origin:", origin);
-
       // 1. Validate the action code and get the public key
       const action = await this.actionCodesService.getAction(code);
       if (!action.intendedFor) {
         throw new ActioConnectionError("Action missing intended recipient");
       }
       const publicKey = new PublicKey(action.intendedFor);
-      console.log("Session public key:", publicKey.toString());
 
       // 2. Create a valid transaction with dummy blockhash
       const authTx = new Transaction();
@@ -94,10 +91,8 @@ export class SessionService {
       };
 
       this.storeSession(session);
-      console.log("Session stored successfully");
       return { session, publicKey };
     } catch (error) {
-      console.error("Failed to create session:", error);
       throw new ActioConnectionError(
         `Failed to create session: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -112,84 +107,62 @@ export class SessionService {
    */
   async validateSession(origin: string): Promise<SessionValidationResult> {
     try {
-      console.log("Validating session for origin:", origin);
-
       // 1. Get stored session
       const session = this.getStoredSession();
       if (!session) {
-        console.log("No session found in localStorage");
         return { isValid: false, error: "No session found" };
       }
-      console.log("Found session:", session);
 
       // 2. Check expiration
       const now = new Date();
       const expiresAt = new Date(session.expiresAt);
-      console.log("Session expires at:", expiresAt, "Current time:", now);
 
       if (expiresAt < now) {
-        console.log("Session expired, clearing");
         this.clearSession();
         return { isValid: false, error: "Session expired" };
       }
 
       // 3. Check origin
-      console.log("Session origin:", session.origin, "Current origin:", origin);
       if (session.origin !== origin) {
-        console.log("Origin mismatch, clearing session");
         this.clearSession();
         return { isValid: false, error: "Session origin mismatch" };
       }
 
       // 4. Validate transaction using SDK (same as signTransaction validation)
-      console.log("Validating transaction...");
       const signedTxBuffer = this.base64ToArrayBuffer(session.signedTxBase64);
 
       let signedTx: Transaction | VersionedTransaction;
       try {
         signedTx = Transaction.from(signedTxBuffer);
-        console.log("Transaction deserialized as Transaction");
       } catch {
         try {
           signedTx = VersionedTransaction.deserialize(signedTxBuffer);
-          console.log("Transaction deserialized as VersionedTransaction");
         } catch (error) {
-          console.error("Failed to deserialize transaction:", error);
           return { isValid: false, error: "Invalid transaction format" };
         }
       }
 
       // 5. Extract public key from memo (same as signTransaction)
-      console.log("Extracting memo...");
       const actioMemo = getActioMemo(signedTx);
       if (!actioMemo) {
-        console.log("No memo found in transaction");
         return { isValid: false, error: "No memo found" };
       }
-      console.log("Memo text:", actioMemo);
 
       if (!actioMemo) {
-        console.log("Failed to parse memo");
         return { isValid: false, error: "Invalid memo format" };
       }
-      console.log("Parsed memo:", actioMemo);
 
       // 6. Use SDK to validate (same validation as signTransaction)
-      console.log("Running SDK validation...");
       const isValid = await validateActionCodesMemoTransaction(signedTx);
-      console.log("SDK validation result:", isValid);
 
       if (!isValid) {
-        console.log("SDK validation failed, clearing session");
         this.clearSession();
         return { isValid: false, error: "Invalid transaction" };
       }
 
       const publicKey = new PublicKey(actioMemo.parsed.int);
-      console.log("Extracted public key:", publicKey.toString());
       return { isValid: true, publicKey };
     } catch (error) {
-      console.error("Session validation error:", error);
       this.clearSession();
       return {
         isValid: false,
@@ -204,7 +177,6 @@ export class SessionService {
    * Clear the session
    */
   clearSession(): void {
-    console.log("Clearing session from localStorage");
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.removeItem(this.storageKey);
     }
@@ -215,7 +187,6 @@ export class SessionService {
    */
   async hasValidSession(origin: string): Promise<boolean> {
     const result = await this.validateSession(origin);
-    console.log("hasValidSession result:", result);
     return result.isValid;
   }
 
@@ -247,7 +218,6 @@ export class SessionService {
    * Store session
    */
   private storeSession(session: ActioSession): void {
-    console.log("Storing session:", session);
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.setItem(this.storageKey, JSON.stringify(session));
     }
@@ -259,12 +229,10 @@ export class SessionService {
   private getStoredSession(): ActioSession | null {
     if (typeof window !== "undefined" && window.localStorage) {
       const stored = localStorage.getItem(this.storageKey);
-      console.log("Raw stored session:", stored);
       if (stored) {
         try {
           return JSON.parse(stored) as ActioSession;
         } catch (error) {
-          console.error("Failed to parse stored session:", error);
           localStorage.removeItem(this.storageKey);
         }
       }
